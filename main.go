@@ -5,6 +5,7 @@ import (
     "flag"
     "github.com/prometheus/client_golang/prometheus"
     "github.com/prometheus/client_golang/prometheus/promhttp"
+    "github.com/prometheus/common/version"
     "github.com/spf13/viper"
     "log"
     "net/http"
@@ -51,7 +52,8 @@ func main() {
         registerFetcher(balance_retrievers.NewSelectelBalanceFetcher(balance_retrievers.SelectelConfig{ApiKey: apiKey}))
     }
 
-    log.Printf("Starting Selectel balance exporter at address %s\n", *addr)
+    log.Println("Starting Selectel balance exporter", version.Info())
+    log.Println("Build context", version.BuildContext())
 
     loadBalance()
 
