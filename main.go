@@ -1,7 +1,7 @@
 package main
 
 import (
-    "balance_exporter/balance_retrievers"
+    "selectel_balance_exporter/balance_retrievers"
     "flag"
     "github.com/prometheus/client_golang/prometheus"
     "github.com/prometheus/client_golang/prometheus/promhttp"
