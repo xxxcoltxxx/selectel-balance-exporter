@@ -67,22 +67,25 @@ func (bf SelectelBalanceRetriever) loadBody() ([]byte, error) {
     req, err := http.NewRequest(http.MethodGet, selectelUrl, nil)
 
     if err != nil {
-        log.Printf("Error fetching balance: %s", err.Error())
+        log.Printf("Error make request: %s", err.Error())
         return []byte{}, err
     }
 
     req.Header.Add("X-token", bf.config.ApiKey)
     res, err := client.Do(req)
+    if err != nil {
+        log.Printf("Error balance request: %s", err.Error())
+        return []byte{}, err
+    }
+
     defer func() {
         err := res.Body.Close()
-        if err != nil {
-            log.Printf("Error fetching balance: %s", err.Error())
-        }
+        log.Printf("Error close response body: %s", err.Error())
     }()
 
     body, err := ioutil.ReadAll(res.Body)
     if err != nil {
-        log.Printf("Error fetching balance: %s", err.Error())
+        log.Printf("Error read response: %s", err.Error())
     }
 
     return body, nil
