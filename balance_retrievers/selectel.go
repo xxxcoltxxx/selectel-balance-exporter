@@ -80,7 +80,9 @@ func (bf SelectelBalanceRetriever) loadBody() ([]byte, error) {
 
     defer func() {
         err := res.Body.Close()
-        log.Printf("Error close response body: %s", err.Error())
+        if err != nil {
+            log.Printf("Error close response body: %s", err.Error())
+        }
     }()
 
     body, err := ioutil.ReadAll(res.Body)
