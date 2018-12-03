@@ -15,7 +15,7 @@ script:
     gox \
       -os="linux darwin windows" \
       -arch="amd64" \
-      -output="dist/{{.Dir}}_${TRAVIS_TAG}_{{.OS}}_{{.Arch}}" \
+      -output="build/{{.Dir}}_${TRAVIS_TAG}_{{.OS}}_{{.Arch}}" \
       -ldflags " \
         -X github.com/prometheus/common/version.Revision=${TRAVIS_COMMIT} \
         -X github.com/prometheus/common/version.Version=${TRAVIS_TAG} \
@@ -25,7 +25,7 @@ script:
        "
 
 before_deploy:
-  - cd dist
+  - cd build
   - chmod +x ./*
   - for f in *; do tar -czf $f.tar.gz $f && rm $f; done
   - cd ..
