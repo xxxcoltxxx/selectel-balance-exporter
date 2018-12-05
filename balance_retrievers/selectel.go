@@ -31,7 +31,7 @@ type selectelBalance struct {
     Balance float64 `json:"balance"`
 }
 
-func NewSelectelBalanceFetcher(config SelectelConfig) BalanceRetriever {
+func NewSelectelRetriever(config SelectelConfig) BalanceRetriever {
     return SelectelBalanceRetriever{
         config: config,
     }
