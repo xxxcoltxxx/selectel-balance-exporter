@@ -1,7 +1,7 @@
 package main
 
 import (
-    "selectel_balance_exporter/balance_retrievers"
+    "context"
     "flag"
     "github.com/prometheus/client_golang/prometheus"
     "github.com/prometheus/client_golang/prometheus/promhttp"
@@ -9,33 +9,33 @@ import (
     "github.com/spf13/viper"
     "log"
     "net/http"
+    "os"
+    "os/signal"
+    "selectel_balance_exporter/balance_retrievers"
     "sync"
+    "syscall"
     "time"
 )
 
 var addr = flag.String("listen-address", ":9600", "The address to listen on for HTTP requests.")
 var config = flag.String("config", "", "Config file")
 
-var balanceFetchers []balance_retrievers.BalanceRetriever
-var collectors = make(map[string]prometheus.Gauge)
+var retrievers []balance_retrievers.BalanceRetriever
 var balanceGauge *prometheus.GaugeVec
 
 var mutex sync.RWMutex
 
 func init() {
-    balanceGauge = newGauge()
-    prometheus.MustRegister(balanceGauge)
-}
-
-func newGauge() *prometheus.GaugeVec {
-    return prometheus.NewGaugeVec(
+    balanceGauge = prometheus.NewGaugeVec(
         prometheus.GaugeOpts{
-            Subsystem:   "balance",
-            Help:        "Balance for service in selectel account",
-            Name:        "selectel",
+            Subsystem: "balance",
+            Name:      "selectel",
+            Help:      "Balance for service in selectel account",
         },
         []string{"service"},
     )
+
+    prometheus.MustRegister(balanceGauge)
 }
 
 func main() {
@@ -49,7 +49,7 @@ func main() {
         }
         return
     } else {
-        registerFetcher(balance_retrievers.NewSelectelBalanceFetcher(balance_retrievers.SelectelConfig{ApiKey: apiKey}))
+        registerRetriever(balance_retrievers.NewSelectelRetriever(balance_retrievers.SelectelConfig{ApiKey: apiKey}))
     }
 
     log.Println("Starting Selectel balance exporter", version.Info())
@@ -60,12 +60,43 @@ func main() {
     interval := v.GetInt("interval")
     go startBalanceUpdater(interval)
 
+    srv := &http.Server{
+        Addr:         *addr,
+        WriteTimeout: time.Second * 2,
+        ReadTimeout:  time.Second * 2,
+        IdleTimeout:  time.Second * 60,
+
+        Handler: nil,
+    }
+
     http.Handle("/metrics", promhttp.Handler())
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         http.ServeFile(w, r, "static/index.html")
     })
 
-    log.Fatal(http.ListenAndServe(*addr, nil))
+    go func() {
+        log.Fatal(srv.ListenAndServe())
+    }()
+
+    log.Printf("Selectel balance exporter has been started at address %s", *addr)
+
+    c := make(chan os.Signal, 1)
+
+    signal.Notify(c, os.Interrupt)
+    signal.Notify(c, syscall.SIGTERM)
+
+    <-c
+
+    log.Println("Selectel balance exporter shutdown")
+    ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+    defer cancel()
+
+    err := srv.Shutdown(ctx)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    os.Exit(0)
 }
 
 func readConfig() *viper.Viper {
@@ -92,9 +123,9 @@ func readConfig() *viper.Viper {
     return v
 }
 
-func registerFetcher(fetcher balance_retrievers.BalanceRetriever) {
+func registerRetriever(fetcher balance_retrievers.BalanceRetriever) {
     mutex.Lock()
-    balanceFetchers = append(balanceFetchers, fetcher)
+    retrievers = append(retrievers, fetcher)
     mutex.Unlock()
 }
 
@@ -106,7 +137,7 @@ func startBalanceUpdater(interval int) {
 }
 
 func loadBalance() {
-    for _, f := range balanceFetchers {
+    for _, f := range retrievers {
         results, err := f.GetBalance()
         if err != nil {
             log.Print(err.Error())
