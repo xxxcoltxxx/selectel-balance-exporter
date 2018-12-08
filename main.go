@@ -2,11 +2,11 @@ package main
 
 import (
     "context"
+    "errors"
     "flag"
     "github.com/prometheus/client_golang/prometheus"
     "github.com/prometheus/client_golang/prometheus/promhttp"
     "github.com/prometheus/common/version"
-    "github.com/spf13/viper"
     "log"
     "net/http"
     "os"
@@ -18,12 +18,17 @@ import (
 )
 
 var addr = flag.String("listen-address", ":9600", "The address to listen on for HTTP requests.")
-var config = flag.String("config", "", "Config file")
+var interval = flag.Int("interval", 3600, "Interval (in seconds) for request balance.")
+var retryInterval = flag.Int("retry-interval", 10, "Interval (in seconds) for load balance when errors.")
+var retryLimit = flag.Int("retry-limit", 10, "Count of tries when error.")
 
-var retrievers []balance_retrievers.BalanceRetriever
-var balanceGauge *prometheus.GaugeVec
-
-var mutex sync.RWMutex
+var (
+    retrievers   []balance_retrievers.BalanceRetriever
+    balanceGauge *prometheus.GaugeVec
+    mutex        sync.RWMutex
+    hasError     = false
+    retryCount   = 0
+)
 
 func init() {
     balanceGauge = prometheus.NewGaugeVec(
@@ -36,29 +41,26 @@ func init() {
     )
 
     prometheus.MustRegister(balanceGauge)
+
+    flag.Parse()
 }
 
 func main() {
-    v := readConfig()
-
-    if apiKey := v.GetString("apiKey"); apiKey == "" {
-        if *config != "" {
-            log.Fatalf("Key \"apiKey\" in file %s is not set\n", *config)
-        } else {
-            log.Fatalf("Environment value \"SELECTEL_API_KEY\" is not set\n")
-        }
-        return
-    } else {
-        registerRetriever(balance_retrievers.NewSelectelRetriever(balance_retrievers.SelectelConfig{ApiKey: apiKey}))
-    }
-
     log.Println("Starting Selectel balance exporter", version.Info())
     log.Println("Build context", version.BuildContext())
 
-    loadBalance()
+    config, err := readConfig()
+    if err != nil {
+        log.Fatalln(err)
+    }
 
-    interval := v.GetInt("interval")
-    go startBalanceUpdater(interval)
+    registerRetriever(balance_retrievers.NewSelectelRetriever(config))
+
+    if err := loadBalance(); err != nil {
+        log.Fatalln(err)
+    }
+
+    go startBalanceUpdater()
 
     srv := &http.Server{
         Addr:         *addr,
@@ -75,13 +77,13 @@ func main() {
     })
 
     go func() {
-        log.Fatal(srv.ListenAndServe())
+        log.Fatalln(srv.ListenAndServe())
     }()
 
-    log.Printf("Selectel balance exporter has been started at address %s", *addr)
+    log.Printf("Selectel balance exporter has been started at address %s\n", *addr)
+    log.Printf("Exporter will update balance every %d seconds\n", *interval)
 
     c := make(chan os.Signal, 1)
-
     signal.Notify(c, os.Interrupt)
     signal.Notify(c, syscall.SIGTERM)
 
@@ -91,36 +93,23 @@ func main() {
     ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
     defer cancel()
 
-    err := srv.Shutdown(ctx)
-    if err != nil {
-        log.Fatal(err)
+    if err := srv.Shutdown(ctx); err != nil {
+        log.Fatalln(err)
     }
 
     os.Exit(0)
 }
 
-func readConfig() *viper.Viper {
-    flag.Parse()
-    v := viper.New()
-    v.SetDefault("apiKey", "")
-    v.SetDefault("interval", 3600)
+func readConfig() (balance_retrievers.SelectelConfig, error) {
+    var config balance_retrievers.SelectelConfig
 
-    if *config != "" {
-        v.SetConfigFile(*config)
-        v.AddConfigPath(".")
-        err := v.ReadInConfig()
-        if err != nil {
-            log.Println("error", err.Error())
-        }
+    if apiKey, ok := os.LookupEnv("SELECTEL_API_KEY"); ok {
+        config.ApiKey = apiKey
     } else {
-        err := v.BindEnv("apiKey", "SELECTEL_API_KEY")
-        if err != nil {
-            log.Println("error", err.Error())
-        }
-        v.AutomaticEnv()
+        return balance_retrievers.SelectelConfig{}, errors.New("environment \"SELECTEL_API_KEY\" is not set")
     }
 
-    return v
+    return config, nil
 }
 
 func registerRetriever(fetcher balance_retrievers.BalanceRetriever) {
@@ -129,23 +118,41 @@ func registerRetriever(fetcher balance_retrievers.BalanceRetriever) {
     mutex.Unlock()
 }
 
-func startBalanceUpdater(interval int) {
+func startBalanceUpdater() {
     for {
-        time.Sleep(time.Second * time.Duration(interval))
-        loadBalance()
+        if hasError {
+            log.Printf("Request will retry after %d seconds\n", *retryInterval)
+            time.Sleep(time.Second * time.Duration(*retryInterval))
+        } else {
+            time.Sleep(time.Second * time.Duration(*interval))
+        }
+
+        if err := loadBalance(); err != nil {
+            log.Println(err.Error())
+            hasError = true
+            retryCount++
+            if retryCount >= *retryLimit {
+                log.Printf("Retry limit %d has been exceeded\n", *retryLimit)
+                hasError = false
+                retryCount = 0
+            }
+        } else {
+            hasError = false
+            retryCount = 0
+        }
     }
 }
 
-func loadBalance() {
+func loadBalance() error {
     for _, f := range retrievers {
-        results, err := f.GetBalance()
-        if err != nil {
-            log.Print(err.Error())
-            return
-        }
-
-        for _, b := range results {
-            balanceGauge.With(prometheus.Labels{"service": b.Name}).Set(b.Balance)
+        if results, err := f.GetBalance(); err != nil {
+            return err
+        } else {
+            for _, b := range results {
+                balanceGauge.With(prometheus.Labels{"service": b.Name}).Set(b.Balance)
+            }
         }
     }
+
+    return nil
 }
