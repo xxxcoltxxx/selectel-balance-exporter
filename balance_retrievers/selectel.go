@@ -2,6 +2,8 @@ package balance_retrievers
 
 import (
     "encoding/json"
+    "errors"
+    "fmt"
     "io/ioutil"
     "log"
     "net/http"
@@ -18,7 +20,7 @@ type SelectelBalanceRetriever struct {
     config SelectelConfig
 }
 
-type selectelResponse struct {
+type BalanceResponse struct {
     Data struct {
         Selectel selectelBalance `json:"selectel"`
         Storage  selectelBalance `json:"storage"`
@@ -41,22 +43,22 @@ func (bf SelectelBalanceRetriever) GetName() string {
     return "selectel"
 }
 
-func (bf SelectelBalanceRetriever) GetBalance() (balances []ServiceBalance, err error) {
+func (bf SelectelBalanceRetriever) GetBalance() ([]ServiceBalance, error) {
     body, err := bf.loadBody()
     if err != nil {
-        log.Printf("Error fetching balance: %s", err.Error())
+        return []ServiceBalance{}, errors.New(fmt.Sprintf("Error fetching balance: %s", err.Error()))
     }
 
-    jsonResponse := selectelResponse{}
-    if err := json.Unmarshal(body, &jsonResponse); err != nil {
-        log.Printf("Error fetching balance: %s", err.Error())
+    balanceResponse := BalanceResponse{}
+    if err := json.Unmarshal(body, &balanceResponse); err != nil {
+        return []ServiceBalance{}, errors.New(fmt.Sprintf("Response parse error: %s", err.Error()))
     }
 
     return []ServiceBalance{
-        {Name: "selectel", Balance: jsonResponse.Data.Selectel.Balance / 100},
-        {Name: "storage", Balance: jsonResponse.Data.Storage.Balance / 100},
-        {Name: "vmware", Balance: jsonResponse.Data.Vmware.Balance / 100},
-        {Name: "vpc", Balance: jsonResponse.Data.Vpc.Balance / 100},
+        {Name: "selectel", Balance: balanceResponse.Data.Selectel.Balance / 100},
+        {Name: "storage", Balance: balanceResponse.Data.Storage.Balance / 100},
+        {Name: "vmware", Balance: balanceResponse.Data.Vmware.Balance / 100},
+        {Name: "vpc", Balance: balanceResponse.Data.Vpc.Balance / 100},
     }, nil
 }
 
@@ -65,29 +67,26 @@ func (bf SelectelBalanceRetriever) loadBody() ([]byte, error) {
         Timeout: time.Second * 2,
     }
     req, err := http.NewRequest(http.MethodGet, selectelUrl, nil)
-
     if err != nil {
-        log.Printf("Error make request: %s", err.Error())
-        return []byte{}, err
+        return []byte{}, errors.New(fmt.Sprintf("Cannot create request: %s", err.Error()))
     }
 
     req.Header.Add("X-token", bf.config.ApiKey)
     res, err := client.Do(req)
     if err != nil {
-        log.Printf("Error balance request: %s", err.Error())
-        return []byte{}, err
+        return []byte{}, errors.New(fmt.Sprintf("Request error: %s", err.Error()))
     }
 
     defer func() {
         err := res.Body.Close()
         if err != nil {
-            log.Printf("Error close response body: %s", err.Error())
+            log.Println(fmt.Sprintf("Cannot close response body: %s", err.Error()))
         }
     }()
 
     body, err := ioutil.ReadAll(res.Body)
     if err != nil {
-        log.Printf("Error read response: %s", err.Error())
+        return []byte{}, errors.New(fmt.Sprintf("Cannot read response body: %s", err.Error()))
     }
 
     return body, nil

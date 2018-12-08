@@ -9,18 +9,20 @@ When prometheus request metrics, exporter send balance value from memory.
 ## Configuration
 You must set environment variable:
 
-* `SELECTEL_API_KEY` - your api token. Api key can be generated at page https://my.selectel.ru/profile/apikeys
+* `SELECTEL_API_KEY` - your api key. Api key can be generated at page https://my.selectel.ru/profile/apikeys
 
 ## Command-line flags
 
 * `listen-address` - The address to listen on for HTTP requests. (Default: `0.0.0.0:9600`)
 * `interval` - Interval (in seconds) for balance requests. (Default: `3600`)
+* `retry-interval` - Interval (in seconds) for load balance when errors. (Default: 10)
+* `retry-limit` - Count of tries when error. (Default: 10)
 
 ## Running with docker
 
 ```sh
 docker run \
-    -e SELECTEL_API_KEY=<your-token> \
+    -e SELECTEL_API_KEY=<your-key> \
     -p 9600:9600 \
     --restart=unless-stopped \
     --name selectel-balance-exporter \
@@ -40,7 +42,7 @@ services:
     image: xxxcoltxxx/selectel-balance-exporter
     restart: unless-stopped
     environment:
-      SELECTEL_API_KEY: <your-token>
+      SELECTEL_API_KEY: <your-key>
     ports:
       - 9600:9600
 ```
@@ -62,7 +64,7 @@ Set variables you need:
 SELECTEL_EXPORTER_VERSION=v0.1.7-beta.1
 SELECTEL_EXPORTER_PLATFORM=linux
 SELECTEL_EXPORTER_ARCH=amd64
-SELECTEL_API_KEY=<your-token>
+SELECTEL_API_KEY=<your-key>
 ```
 
 Download release:
