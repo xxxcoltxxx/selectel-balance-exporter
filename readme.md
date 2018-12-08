@@ -15,8 +15,8 @@ You must set environment variable:
 
 * `listen-address` - The address to listen on for HTTP requests. (Default: `0.0.0.0:9600`)
 * `interval` - Interval (in seconds) for balance requests. (Default: `3600`)
-* `retry-interval` - Interval (in seconds) for load balance when errors. (Default: 10)
-* `retry-limit` - Count of tries when error. (Default: 10)
+* `retry-interval` - Interval (in seconds) for load balance when errors. (Default: `10`)
+* `retry-limit` - Count of tries when error. (Default: `10`)
 
 ## Running with docker
 
