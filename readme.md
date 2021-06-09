@@ -18,6 +18,17 @@ You must set environment variable:
 * `retry-interval` - Interval (in seconds) for load balance when errors. (Default: `10`)
 * `retry-limit` - Count of tries when error. (Default: `10`)
 
+## Metrics example
+```
+# HELP balance_selectel Balance for service in selectel account
+# TYPE balance_selectel gauge
+balance_selectel{service="primary"} 10000.54
+balance_selectel{service="storage"} 20000.52
+balance_selectel{service="vmware"} 0
+balance_selectel{service="vpc"} 300000.47
+```
+
+
 ## Running with docker
 
 ```sh
@@ -61,7 +72,7 @@ docker-compose logs -f selectel-balance-exporter
 
 Set variables you need:
 ```sh
-SELECTEL_EXPORTER_VERSION=v0.1.7-beta.1
+SELECTEL_EXPORTER_VERSION=v0.2.0
 SELECTEL_EXPORTER_PLATFORM=linux
 SELECTEL_EXPORTER_ARCH=amd64
 SELECTEL_API_KEY=<your-key>
