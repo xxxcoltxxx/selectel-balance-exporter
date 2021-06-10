@@ -104,15 +104,15 @@ WantedBy=multi-user.target
 Reload systemctl configuration and restart service
 ```sh
 systemctl daemon-reload
-systemctl restart selectel-balance-exporter
+systemctl restart selectel_balance_exporter
 ```
 
 Show service status:
 ```sh
-systemctl status selectel-balance-exporter
+systemctl status selectel_balance_exporter
 ```
 
 Show service logs:
 ```sh
-journalctl -fu selectel-balance-exporter
+journalctl -fu selectel_balance_exporter
 ```
