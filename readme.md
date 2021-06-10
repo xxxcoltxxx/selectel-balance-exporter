@@ -72,7 +72,7 @@ docker-compose logs -f selectel-balance-exporter
 
 Set variables you need:
 ```sh
-SELECTEL_EXPORTER_VERSION=v0.2.0
+SELECTEL_EXPORTER_VERSION=0.2.0
 SELECTEL_EXPORTER_PLATFORM=linux
 SELECTEL_EXPORTER_ARCH=amd64
 SELECTEL_API_KEY=<your-key>
@@ -80,9 +80,9 @@ SELECTEL_API_KEY=<your-key>
 
 Download release:
 ```sh
-wget https://github.com/xxxcoltxxx/selectel-balance-exporter/releases/download/${SELECTEL_EXPORTER_VERSION}/selectel_balance_exporter_${SELECTEL_EXPORTER_VERSION}_${SELECTEL_EXPORTER_PLATFORM}_${SELECTEL_EXPORTER_ARCH}.tar.gz
-tar xvzf selectel_balance_exporter_${SELECTEL_EXPORTER_VERSION}_${SELECTEL_EXPORTER_PLATFORM}_${SELECTEL_EXPORTER_ARCH}.tar.gz
-mv ./selectel_balance_exporter_${SELECTEL_EXPORTER_VERSION}_${SELECTEL_EXPORTER_PLATFORM}_${SELECTEL_EXPORTER_ARCH} /usr/local/bin/selectel_balance_exporter
+wget https://github.com/xxxcoltxxx/selectel-balance-exporter/releases/download/v${SELECTEL_EXPORTER_VERSION}/selectel-balance-exporter_${SELECTEL_EXPORTER_VERSION}_${SELECTEL_EXPORTER_PLATFORM}_${SELECTEL_EXPORTER_ARCH}.tar.gz
+tar xvzf selectel-balance-exporter_${SELECTEL_EXPORTER_VERSION}_${SELECTEL_EXPORTER_PLATFORM}_${SELECTEL_EXPORTER_ARCH}.tar.gz
+mv ./selectel-balance-exporter /usr/local/bin/selectel-balance-exporter
 ```
 
 Add service to systemctl. For example, file named `/etc/systemd/system/selectel_balance_exporter.service`:
