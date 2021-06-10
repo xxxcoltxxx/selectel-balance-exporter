@@ -95,7 +95,7 @@ After=network-online.target
 [Service]
 Environment="SELECTEL_API_KEY=${SELECTEL_API_KEY}"
 Type=simple
-ExecStart=/usr/local/bin/selectel_balance_exporter
+ExecStart=/usr/local/bin/selectel-balance-exporter
 
 [Install]
 WantedBy=multi-user.target
@@ -104,15 +104,15 @@ WantedBy=multi-user.target
 Reload systemctl configuration and restart service
 ```sh
 systemctl daemon-reload
-systemctl restart selectel_balance_exporter
+systemctl restart selectel-balance-exporter
 ```
 
 Show service status:
 ```sh
-systemctl status selectel_balance_exporter
+systemctl status selectel-balance-exporter
 ```
 
 Show service logs:
 ```sh
-journalctl -fu selectel_balance_exporter
+journalctl -fu selectel-balance-exporter
 ```
